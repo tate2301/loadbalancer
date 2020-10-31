@@ -1,0 +1,26 @@
+{
+    "servers": [
+        {
+            "nickname": "Server-1",
+            "PORT": 1000
+        },
+        {
+            "nickname": "Server-2",
+            "PORT": 2000
+        },
+        {
+            "nickname": "Server-3",
+            "PORT": 3000,
+            "UP": false
+        },
+        {
+            "nickname": "Server-4",
+            "PORT": 4000
+        },
+        {
+            "nickname": "Server-5",
+            "PORT": 5000
+        }
+
+    ]
+}
