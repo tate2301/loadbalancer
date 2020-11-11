@@ -15,6 +15,7 @@ const crypto = require('crypto')
 
 
 const config = require('./network.config.json')
+const path = require("path");
 
 
 app.use(cors())
@@ -43,15 +44,7 @@ class Balancer {
         this.launchServer()
         this.socketWatcher()
 
-        setTimeout(() => {
-            this.state.launchedServers[2].setStatus(true)
-            console.log('Status changed to UP');
-        }, 50000);
-
-        setTimeout(() => {
-            this.state.launchedServers[2].setStatus(false)
-            console.log('Status changed to UP');
-        }, 20000);
+        
     }
 
     async launchServer() {
@@ -66,10 +59,7 @@ class Balancer {
 
     spinUpServers() {
         this.state.servers.map(server => {
-            const mock = new MockServer(server.PORT, server.nickname, server.UP)
-            mock.id = server.PORT
-            mock.start()
-            this.state.launchedServers.push(mock)
+            this.state.launchedServers.push({...server, address: 'http://localhost:' + server.PORT})
         })
     }
 
@@ -81,23 +71,25 @@ class Balancer {
 
                 response.on('response', serverResponse => {
                     if(serverResponse.statusCode != 200) {
+                        server.UP = false
                         this.state.unhealthyServers.push({server})
                     } else {
                         this.state.unhealthyServers.pop(server)
                         var filtered = this.state.launchedServers.filter(function(value, index, arr){ 
                             return value.PORT !== server.PORT;
                         });
-
+                        server.UP = true
                         server.responseTime = new Date() - startTime
                         filtered.push(server)
                        
                     }
                 }).on('error', err => {
+                    server.UP = false
                     this.state.unhealthyServers.push({server, reason: err.code})
+                    console.log({unhealthyServers: this.state.unhealthyServers[0].server, reason: this.state.unhealthyServers[0].reason})
                 })
             })
 
-            await console.log({unhealthyServers: this.state.unhealthyServers})
 
     }
 
@@ -109,6 +101,21 @@ class Balancer {
             res.json({
                 ...this.state
             })
+        })
+
+        app.use('/benchmarks', (req, res) => {
+            res.sendFile(path.join(__dirname,'/benchmarks.html'));
+
+        })
+
+        app.use('/metrics', (req, res) => {
+            res.sendFile(path.join(__dirname,'/metrics.html'));
+
+        })
+
+        app.use('/compare', (req, res) => {
+            res.sendFile(path.join(__dirname,'/compare.html'));
+
         })
 
         app.use('*', (req, res, next) => {

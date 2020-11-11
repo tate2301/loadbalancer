@@ -1,8 +1,9 @@
 const express = require('express');
 const { url } = require('inspector');
 const socketClient = require('socket.io-client')
-const scribbles = require('scribbles');
-
+const config = require('./network.config.json')
+//const scribbles = require('scribbles');
+const { v4: UUID } = require('uuid');
 
 
 class MockServer {
@@ -19,6 +20,8 @@ class MockServer {
     UP = true
     
     address = ""
+
+    uuid = UUID()
     constructor (PORT, nickname, UP) {
 
         this.PORT = PORT
@@ -27,6 +30,7 @@ class MockServer {
         this.address = "http://localhost:" + PORT
         this.router()
 
+        /*
         scribbles.config({
             dataOut:console.log
          })
@@ -35,7 +39,7 @@ class MockServer {
             scribbles.status();
           }, 5000);
          
-
+        */
     }
 
     emmitHealthInfo({count}) {
@@ -54,10 +58,16 @@ class MockServer {
 
     router = () => {
 
-        this.app.get('/check', (req, res) => {
+        this.app.get('/m/check', (req, res) => {
             console.log('Health Check Request');
-            res.status(200).end();
+            res.status(200).json({uuid: this.uuid}).end();
         });
+
+        this.app.get('/m/stop', (req, res) => {
+            this.stop(() => {
+                res.json({message: 'Server stopped - ' + this.uuid})
+            })
+        })
 
         this.app.use('*', (req, res) => {
             res.json({
@@ -73,19 +83,35 @@ class MockServer {
     start = () => {
         if (this.UP) {
             this.server.listen(this.PORT, () => {
-                this.socket.emit('boot', `[+] Mock server started on PORT: ${this.PORT} with nickname ${this.nickname} PID ${process.pid}`)
+                this.socket.emit('boot', `[+] Mock server started on PORT: ${this.PORT} with nickname ${this.nickname} \n   - PID: ${process.pid} \n   - UUID: ${this.uuid}`)
             })
         }
     }
 
-    stop = () => {
+    stop = (cb) => {
         this.server.close(() => {
             this.socket.emit('boot', `[+] Mock server stopped on PORT: ${this.PORT} with nickname ${this.nickname} PID ${process.pid}`)
 
         })
+        cb() 
     }
 
     
 }
+
+const servers = config.servers
+const serverPool = []
+
+servers.map(server => {
+    const mock = new MockServer(server.PORT, server.nickname, server.UP)
+    mock.id = server.PORT
+    mock.start()
+    serverPool.push(mock)
+})
+
+setTimeout(() => {
+    
+}, 10000)
+
 
 module.exports = MockServer
